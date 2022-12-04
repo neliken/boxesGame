@@ -1,0 +1,15 @@
+.container {
+    position: absolute; 
+    top: 35px;
+    right: 0;
+    bottom: 0; 
+    left: 0;
+    background-color: black;
+  }
+  .box {
+    position: absolute;
+    width: 10px;
+    height: 10px;
+    background: red;
+    transform: translate(-50%, -50%);
+  }
