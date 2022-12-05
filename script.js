@@ -1,131 +1,172 @@
-const container = document.getElementById("container");
-const buttonUndo = document.getElementById('undo');
-const buttonRedo = document.getElementById('redo');
-const buttonDeleteAll = document.getElementById('delete_all');
-let boxPositions = [];
-let deletedElements = [];
+const container = HtmlNode("#container");
+const buttonUndo = HtmlNode("#undo");
+const buttonRedo = HtmlNode("#redo");
+const buttonDeleteAll = HtmlNode("#deleteAll");
+const containerElement = container.el();
+
+let boxPositions = Position();
+let deletedElements = Position();
 
 function drawSquare(point) {
-    let newDiv = document.createElement("div");
-    newDiv.classList.add('box');
-    newDiv.style.left = point.x + "px";
-    newDiv.style.top  = point.y + "px";
-    container.appendChild(newDiv); 
+  let newDiv = document.createElement("div");
+  newDiv.classList.add("box");
+  newDiv.style.left = point.x + "px";
+  newDiv.style.top = point.y + "px";
+  containerElement.appendChild(newDiv);
 }
 
 function onMouseClick(callback) {
-    container.addEventListener("click", (e) => {
-        const { layerX: x, layerY: y } = e;
+  containerElement.addEventListener("click", (e) => {
+    const { layerX: x, layerY: y } = e;
 
-        if (callback) {
-            callback({
-                x: x,
-                y: y
-            });
-        }
-    });
+    if (callback) {
+      callback({
+        x: x,
+        y: y,
+      });
+    }
+  });
 }
 
-// CALLBACK
-// HOC
-// ANONIMOUS FUNCTIONS
-
-// entry point
 onMouseClick(handlePoint);
 
 function handlePoint(point) {
-    // history.push(point);
-// 1. put in the queue the new point
-// 2. draw the new rect
+  boxPositions.save(point);
+  deletedElements.removeAll();
 
-    boxPositions.push(point);
-    deletedElements = [];
+  drawSquare(point);
+  checkHistory();
+}
 
-    drawSquare(point);
-    checkHistory();
+function Position() {
+  let elements = [];
+
+  return {
+    get: function () {
+      return elements;
+    },
+    length: function() {
+      return elements.length;
+    },
+    save: function (point) {
+      elements.push(point);
+    },
+    removeLast: function () {
+      return elements.pop();
+    },
+    removeAll: function () {
+      elements = [];
+      return elements;
+    },
+  };
 }
 
 function checkHistory() {
-    if (drawSquare) {
-        buttonUndo.disabled = false;
-    }
+  if (drawSquare) {
+    buttonUndo.enable();
+  }
 
-    if (boxPositions.length === 0) {
-        buttonUndo.disabled = true;
-        buttonDeleteAll.disabled = true;
-    }
+  buttonUndo.toggle(boxPositions.length());
+  buttonRedo.toggle(deletedElements.length());
+  buttonDeleteAll.toggle(boxPositions.length());
+  buttonDeleteAll.toggle(
+    boxPositions.length() !== 0 || deletedElements.length() !== 0
+  );
 
-    if(deletedElements.length === 0) {
-        buttonRedo.disabled = true;
-    }
-
-    if( boxPositions.length !== 0 || deletedElements.length !== 0) {
-        buttonDeleteAll.disabled = false;
-    }
-
-    buttonUndo.addEventListener('click', () => {
-        buttonRedo.disabled = false;
-
-        if (boxPositions.length === 0) {
-            buttonUndo.disabled = true;
-        }
-    });
-
-    buttonRedo.addEventListener('click', () => {
-        buttonUndo.disabled = false;
- 
-        if(deletedElements.length === 0) {
-            buttonRedo.disabled = true;
-        }
-    });
-
-    buttonDeleteAll.addEventListener('click', () => {
-        buttonUndo.disabled = buttonRedo.disabled = buttonDeleteAll.disabled = true;
-    });
+  eventsListenerHandler();
 }
 
-function undo(){ 
-    deletedElements.push(boxPositions.pop());
-    container.removeChild(container.lastElementChild);
-}
+function HtmlNode(selector) {
+  const element = document.querySelector(selector);
 
-function redo(){
-    let lastChild = deletedElements.pop();
+  if (!element) {
+    console.error("This element does not exists");
+    return;
+  }
 
-    boxPositions.push(lastChild)
-    drawSquare(lastChild);
-}
-
-function deleteAll(){
-    
-    while (container.firstChild) {
-        container.firstChild.remove()
+  return {
+    el: function () {
+      return element;
+    },
+    enable: function () {
+      element.disabled = false;
+    },
+    disable: function () {
+      element.disabled = true;
+    },
+    toggle: function (condition) {
+      element.disabled = !Boolean(condition);
+    },
+    removeLast: function() {
+      return element.removeChild(element.lastElementChild);
     }
-
-    boxPositions = [];
-    deletedElements = [];
+  };
 }
 
-window.onbeforeunload = function() {
-    localStorage.setItem("boxPositions",JSON.stringify(boxPositions)); //localStorage
-    localStorage.setItem("deletedElements",JSON.stringify(deletedElements));
+function undo() {
+  deletedElements.save(boxPositions.removeLast());
+  container.removeLast();
 }
+
+function redo() {
+  let lastChild = deletedElements.removeLast();
+
+  boxPositions.save(lastChild);
+  drawSquare(lastChild);
+}
+
+function deleteAll() {
+  while (containerElement.firstChild) {
+    containerElement.firstChild.remove();
+  }
+
+  boxPositions.removeAll();
+  deletedElements.removeAll();
+}
+
+window.onbeforeunload = function () {
+  localStorage.setItem("boxPositions", JSON.stringify(boxPositions.get())); //localStorage
+  localStorage.setItem("deletedElements", JSON.stringify(deletedElements.get()));
+};
 
 window.addEventListener("load", () => {
-    console.log("page is fully loaded");
-    const savedBoxPositions = localStorage.getItem("boxPositions");
-    const deletedBoxPositions = localStorage.getItem("deletedElements");
+  const savedBoxPositions = localStorage.getItem("boxPositions");
+  const deletedBoxPositions = localStorage.getItem("deletedElements");
 
-    if (savedBoxPositions !== null ) {
-    boxPositions = JSON.parse(savedBoxPositions);
-    boxPositions.forEach(boxPosition => {
-        drawSquare(boxPosition);
-    })
-    }
+  if (savedBoxPositions !== null) {
+    const positions = JSON.parse(savedBoxPositions);
 
-    if (deletedBoxPositions !== null ) {
-        deletedElements = JSON.parse(deletedBoxPositions);
-    }  
+    positions.forEach((point) => {
+      boxPositions.save(point);
+      drawSquare(point);
+    });
+  }
 
-    checkHistory();
+  if (deletedBoxPositions !== null) {
+    const deletedPositions = JSON.parse(deletedBoxPositions);
+
+    deletedPositions.forEach((point) => {
+      deletedElements.save(point);
+    });
+  }
+
+  checkHistory();
 });
+
+function eventsListenerHandler() {
+  buttonUndo.el().addEventListener("click", () => {
+    buttonRedo.enable();
+    buttonUndo.toggle(boxPositions.length());
+  });
+
+  buttonRedo.el().addEventListener("click", () => {
+    buttonUndo.enable();
+    buttonRedo.toggle(deletedElements.length());
+  });
+
+  buttonDeleteAll.el().addEventListener("click", () => {
+    buttonUndo.disable();
+    buttonRedo.disable();
+    buttonDeleteAll.disable();
+  });
+}
